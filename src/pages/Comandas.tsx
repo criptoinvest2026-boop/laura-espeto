@@ -1,0 +1,193 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import AppLayout from '@/components/layout/AppLayout';
+import PageTransition from '@/components/layout/PageTransition';
+import { useOpenTabs } from '@/hooks/useOpenTabs';
+import { useSales } from '@/hooks/useSales';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ClipboardList, Plus, CreditCard, Trash2, Clock } from 'lucide-react';
+import CheckoutModal from '@/components/pdv/CheckoutModal';
+import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+export default function Comandas() {
+  const { tabs } = useOpenTabs();
+  const { updateSale, deleteSale } = useSales();
+  const navigate = useNavigate();
+  const [checkoutTab, setCheckoutTab] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const activeTab = tabs.find((t) => t.name === checkoutTab);
+
+  const handleCharge = async (method: string) => {
+    if (!activeTab) return;
+    try {
+      await Promise.all(
+        activeTab.items.map((s) =>
+          updateSale.mutateAsync({ id: s.id, payment_status: 'pago', payment_method: method })
+        )
+      );
+      toast.success(`Comanda ${activeTab.name} finalizada!`);
+      setCheckoutTab(null);
+    } catch {
+      toast.error('Erro ao cobrar');
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirmDelete) return;
+    const tab = tabs.find((t) => t.name === confirmDelete);
+    if (!tab) return;
+    try {
+      await Promise.all(tab.items.map((s) => deleteSale.mutateAsync(s.id)));
+      toast.success('Comanda cancelada');
+      setConfirmDelete(null);
+    } catch {
+      toast.error('Erro ao cancelar');
+    }
+  };
+
+  return (
+    <AppLayout>
+      <PageTransition>
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-soft">
+              <ClipboardList className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div className="flex-1">
+              <h1 className="font-display text-2xl font-bold">Comandas Abertas</h1>
+              <p className="text-xs text-muted-foreground">
+                {tabs.length} {tabs.length === 1 ? 'comanda em andamento' : 'comandas em andamento'}
+              </p>
+            </div>
+            <Button onClick={() => navigate('/pdv')} className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold">
+              <Plus className="w-4 h-4 mr-1" />
+              Nova venda
+            </Button>
+          </div>
+
+          {tabs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/60">
+              <ClipboardList className="w-12 h-12 mb-3 opacity-30" />
+              <p>Nenhuma comanda aberta</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <AnimatePresence initial={false}>
+                {tabs.map((tab) => (
+                  <motion.div
+                    key={tab.name}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow border-2 border-border hover:border-primary/40">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-display text-xl font-bold">{tab.name}</p>
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Clock className="w-3 h-3" />
+                            {formatDistanceToNow(new Date(tab.openedAt), { addSuffix: true, locale: ptBR })}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold uppercase px-2 py-1 rounded-md bg-warning/15 text-warning">
+                          Aberta
+                        </span>
+                      </div>
+
+                      <div className="space-y-1 max-h-32 overflow-y-auto mb-3 text-sm">
+                        {tab.items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-foreground/80">
+                            <span className="truncate">
+                              {item.quantity}× {item.product_name}
+                            </span>
+                            <span className="font-medium text-foreground shrink-0 ml-2">
+                              R$ {Number(item.total_price).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-baseline justify-between pt-3 border-t border-border">
+                        <span className="text-xs text-muted-foreground">{tab.itemCount} itens</span>
+                        <span className="font-display text-2xl font-bold text-primary">
+                          R$ {tab.total.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/pdv?comanda=${encodeURIComponent(tab.name)}`)}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="col-span-1 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                          onClick={() => setCheckoutTab(tab.name)}
+                        >
+                          <CreditCard className="w-3.5 h-3.5 mr-1" />
+                          Cobrar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => setConfirmDelete(tab.name)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+
+        <CheckoutModal
+          open={!!checkoutTab}
+          onOpenChange={(v) => !v && setCheckoutTab(null)}
+          total={activeTab?.total || 0}
+          onConfirm={handleCharge}
+          loading={updateSale.isPending}
+        />
+
+        <AlertDialog open={!!confirmDelete} onOpenChange={(v) => !v && setConfirmDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancelar comanda?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Todos os itens da comanda {confirmDelete} serão removidos. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Voltar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCancel} className="bg-destructive">
+                Cancelar comanda
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </PageTransition>
+    </AppLayout>
+  );
+}
