@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ClipboardList, Plus, CreditCard, Trash2, Clock } from 'lucide-react';
 import CheckoutModal from '@/components/pdv/CheckoutModal';
+import { printReceipt } from '@/lib/printReceipt';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,6 +41,17 @@ export default function Comandas() {
           updateSale.mutateAsync({ id: s.id, payment_status: 'pago', payment_method: method })
         )
       );
+      printReceipt({
+        customer: activeTab.name,
+        items: activeTab.items.map((s) => ({
+          name: s.product_name,
+          qty: Number(s.quantity),
+          unitPrice: Number(s.unit_price),
+          total: Number(s.total_price),
+        })),
+        total: activeTab.total,
+        paymentMethod: method,
+      });
       toast.success(`Comanda ${activeTab.name} finalizada!`);
       setCheckoutTab(null);
     } catch {

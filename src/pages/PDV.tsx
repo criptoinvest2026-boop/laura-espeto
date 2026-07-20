@@ -15,6 +15,7 @@ import { getProductEmoji } from '@/lib/productEmojis';
 import CheckoutModal from '@/components/pdv/CheckoutModal';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { printReceipt } from '@/lib/printReceipt';
 
 interface CartItem {
   product_id: string;
@@ -153,6 +154,20 @@ export default function PDV() {
           })
         ),
       ]);
+      printReceipt({
+        customer: customer.trim(),
+        items: [
+          ...pendingForCustomer.map((s) => ({
+            name: s.product_name,
+            qty: Number(s.quantity),
+            unitPrice: Number(s.unit_price),
+            total: Number(s.total_price),
+          })),
+          ...cart.map((item) => ({ name: item.name, qty: item.qty, unitPrice: item.price, total: item.price * item.qty })),
+        ],
+        total: total + existingTotal,
+        paymentMethod: method,
+      });
       toast.success('Pagamento finalizado!');
       setCart([]);
       setCustomer('');
