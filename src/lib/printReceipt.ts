@@ -1,4 +1,4 @@
-const BUSINESS_NAME = 'Bella Doces';
+const BUSINESS_NAME = 'Top Espetos';
 
 export interface ReceiptItem {
   name: string;
