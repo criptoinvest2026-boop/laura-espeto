@@ -4,10 +4,12 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
 import { useOpenTabs } from '@/hooks/useOpenTabs';
 import { useSales } from '@/hooks/useSales';
+import { useProducts } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ClipboardList, Plus, CreditCard, Trash2, Clock, ChevronDown } from 'lucide-react';
+import { ClipboardList, Plus, CreditCard, Trash2, Clock, ChevronDown, Pencil } from 'lucide-react';
 import CheckoutModal from '@/components/pdv/CheckoutModal';
+import EditComandaModal from '@/components/comandas/EditComandaModal';
 import TabItemsList from '@/components/comandas/TabItemsList';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { printReceipt } from '@/lib/printReceipt';
@@ -29,11 +31,15 @@ import {
 export default function Comandas() {
   const { tabs } = useOpenTabs();
   const { updateSale, deleteSale } = useSales();
+  const { products } = useProducts();
   const navigate = useNavigate();
   const [checkoutTab, setCheckoutTab] = useState<string | null>(null);
+  const [editTab, setEditTab] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const activeTab = tabs.find((t) => t.name === checkoutTab);
+  const editingTab = tabs.find((t) => t.name === editTab) ?? null;
+  const categoryOf = (name: string) => products.find((p) => p.name === name)?.category ?? null;
 
   const handleCharge = async (method: string) => {
     if (!activeTab) return;
@@ -147,30 +153,37 @@ export default function Comandas() {
                         </CollapsibleContent>
                       </Collapsible>
 
-                      <div className="grid grid-cols-3 gap-1.5 mt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/pdv?comanda=${encodeURIComponent(tab.name)}`)}
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </Button>
+                      <div className="mt-3 space-y-1.5">
                         <Button
                           size="sm"
-                          className="col-span-1 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+                          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
                           onClick={() => setCheckoutTab(tab.name)}
                         >
                           <CreditCard className="w-3.5 h-3.5 mr-1" />
                           Cobrar
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => setConfirmDelete(tab.name)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/pdv?comanda=${encodeURIComponent(tab.name)}`)}
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            Add
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => setEditTab(tab.name)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1" />
+                            Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => setConfirmDelete(tab.name)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   </motion.div>
@@ -186,6 +199,13 @@ export default function Comandas() {
           total={activeTab?.total || 0}
           onConfirm={handleCharge}
           loading={updateSale.isPending}
+        />
+
+        <EditComandaModal
+          open={!!editTab}
+          onOpenChange={(v) => !v && setEditTab(null)}
+          tab={editingTab}
+          categoryOf={categoryOf}
         />
 
         <AlertDialog open={!!confirmDelete} onOpenChange={(v) => !v && setConfirmDelete(null)}>

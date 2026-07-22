@@ -11,20 +11,33 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   productName: string;
   onConfirm: (doneness: string | null, obs: string) => void;
+  /** Valores iniciais (usado ao EDITAR um item já lançado). */
+  initialDoneness?: string | null;
+  initialObs?: string;
+  /** Rótulo do botão de confirmar (ex: "Salvar" ao editar). */
+  confirmLabel?: string;
 }
 
 // Pergunta o ponto da carne (e observação opcional) ao adicionar um espeto/carne
-// ao carrinho do PDV. Segue o padrão visual do CheckoutModal.
-export default function DonenessDialog({ open, onOpenChange, productName, onConfirm }: Props) {
+// ao carrinho do PDV — ou ao editar um item já lançado. Segue o padrão do CheckoutModal.
+export default function DonenessDialog({
+  open,
+  onOpenChange,
+  productName,
+  onConfirm,
+  initialDoneness = null,
+  initialObs = '',
+  confirmLabel = 'Adicionar',
+}: Props) {
   const [doneness, setDoneness] = useState<string | null>(null);
   const [obs, setObs] = useState('');
 
   useEffect(() => {
     if (open) {
-      setDoneness(null);
-      setObs('');
+      setDoneness(initialDoneness);
+      setObs(initialObs);
     }
-  }, [open]);
+  }, [open, initialDoneness, initialObs]);
 
   const confirm = (chosen: string | null) => {
     onConfirm(chosen, obs);
@@ -86,7 +99,7 @@ export default function DonenessDialog({ open, onOpenChange, productName, onConf
             className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
             size="lg"
           >
-            Adicionar
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
