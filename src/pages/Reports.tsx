@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PeriodSelector, { Period, periodToInterval } from '@/components/reports/PeriodSelector';
 import SalesByTabSection from '@/components/reports/SalesByTabSection';
+import { generateReportPdf } from '@/lib/reportPdf';
+import { FileDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -253,6 +255,26 @@ export default function Reports() {
     return format(new Date(year, month - 1), "MMMM 'de' yyyy", { locale: ptBR });
   };
 
+  const periodLabel =
+    period.mode === '7d'
+      ? 'Últimos 7 dias'
+      : period.mode === 'custom'
+      ? period.from && period.to
+        ? `${format(period.from, 'dd/MM/yyyy')} a ${format(period.to, 'dd/MM/yyyy')}`
+        : 'Período personalizado'
+      : period.month === 'all'
+      ? 'Todos os meses'
+      : formatMonth(period.month);
+
+  const exportPdf = () =>
+    generateReportPdf({
+      periodLabel,
+      totals: monthData,
+      sales: monthData.monthSales,
+      expenses: monthData.monthExpenses,
+      products: monthData.topProducts,
+    });
+
   const PSortIcon = productSort.Icon;
   const ESortIcon = expenseSort.Icon;
   const CSortIcon = customerSort.Icon;
@@ -273,12 +295,18 @@ export default function Reports() {
               <p className="text-muted-foreground/70 text-xs mt-0.5">Análise de vendas e custos</p>
             </div>
           </div>
-          <PeriodSelector
-            value={period}
-            onChange={setPeriod}
-            availableMonths={availableMonths}
-            formatMonth={formatMonth}
-          />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <PeriodSelector
+              value={period}
+              onChange={setPeriod}
+              availableMonths={availableMonths}
+              formatMonth={formatMonth}
+            />
+            <Button onClick={exportPdf} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-semibold whitespace-nowrap">
+              <FileDown className="w-4 h-4 mr-1" />
+              Exportar PDF
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards - modern grid */}
