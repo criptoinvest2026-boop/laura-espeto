@@ -10,12 +10,10 @@ import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useSales } from '@/hooks/useSales';
 import { Product } from '@/types/database';
-import { Minus, Plus, Trash2, Save, CreditCard, ShoppingBag, ChevronUp, ChevronDown } from 'lucide-react';
+import { Minus, Plus, Trash2, Save, ShoppingBag, ChevronUp, ChevronDown } from 'lucide-react';
 import { getProductEmoji } from '@/lib/productEmojis';
-import CheckoutModal from '@/components/pdv/CheckoutModal';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { printReceipt } from '@/lib/printReceipt';
 
 interface CartItem {
   product_id: string;
@@ -29,12 +27,11 @@ export default function PDV() {
   const navigate = useNavigate();
   const { products } = useProducts();
   const { categories } = useCategories();
-  const { sales, createSale, updateSale } = useSales();
+  const { sales, createSale } = useSales();
 
   const initialName = searchParams.get('comanda') || '';
   const [customer, setCustomer] = useState(initialName);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [expandedTabs, setExpandedTabs] = useState<Set<string>>(new Set());
 
@@ -89,7 +86,9 @@ export default function PDV() {
     return true;
   };
 
-  const saveItems = async (status: 'pago' | 'pendente', method?: string) => {
+  // O PDV apenas cria/salva pedidos pendentes. Toda cobrança acontece na aba
+  // Comandas (onde futuramente entra a integração com a maquininha de cartão).
+  const savePending = async () => {
     if (!validateCustomer()) return;
     const today = new Date().toISOString().split('T')[0];
     try {
@@ -103,8 +102,8 @@ export default function PDV() {
             quantity: item.qty,
             unit_price: item.price,
             total_price: item.price * item.qty,
-            payment_status: status,
-            payment_method: method || null,
+            payment_status: 'pendente',
+            payment_method: null,
             sale_date: today,
             payment_due_date: null,
             notes: null,
@@ -113,69 +112,13 @@ export default function PDV() {
           })
         )
       );
-      toast.success(status === 'pago' ? 'Pagamento registrado!' : 'Comanda salva!');
+      toast.success('Pedido salvo! Cobre na aba Comandas.');
       setCart([]);
       setCustomer('');
-      setCheckoutOpen(false);
       setCartDrawerOpen(false);
-      if (status === 'pago') navigate('/');
+      if (initialName) navigate('/comandas');
     } catch {
       toast.error('Erro ao registrar');
-    }
-  };
-
-  const handleCheckout = async (method: string) => {
-    if (!validateCustomer()) return;
-    const pendingForCustomer = sales.filter(
-      (s) => s.payment_status === 'pendente' && s.customer_name === customer.trim()
-    );
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      await Promise.all([
-        ...pendingForCustomer.map((s) =>
-          updateSale.mutateAsync({ id: s.id, payment_status: 'pago', payment_method: method })
-        ),
-        ...cart.map((item) =>
-          createSale.mutateAsync({
-            customer_id: null,
-            product_id: item.product_id,
-            product_name: item.name,
-            customer_name: customer.trim(),
-            quantity: item.qty,
-            unit_price: item.price,
-            total_price: item.price * item.qty,
-            payment_status: 'pago',
-            payment_method: method,
-            sale_date: today,
-            payment_due_date: null,
-            notes: null,
-            created_by: null,
-            seller_name: 'Vitor',
-          })
-        ),
-      ]);
-      printReceipt({
-        customer: customer.trim(),
-        items: [
-          ...pendingForCustomer.map((s) => ({
-            name: s.product_name,
-            qty: Number(s.quantity),
-            unitPrice: Number(s.unit_price),
-            total: Number(s.total_price),
-          })),
-          ...cart.map((item) => ({ name: item.name, qty: item.qty, unitPrice: item.price, total: item.price * item.qty })),
-        ],
-        total: total + existingTotal,
-        paymentMethod: method,
-      });
-      toast.success('Pagamento finalizado!');
-      setCart([]);
-      setCustomer('');
-      setCheckoutOpen(false);
-      setCartDrawerOpen(false);
-      navigate('/comandas');
-    } catch {
-      toast.error('Erro ao finalizar');
     }
   };
 
@@ -242,13 +185,6 @@ export default function PDV() {
       )}
     </>
   );
-
-  const handleCobrar = () => {
-    if (!customer.trim()) { toast.error('Informe a mesa'); return; }
-    if (cart.length === 0 && existingPending.length === 0) { toast.error('Adicione itens'); return; }
-    setCartDrawerOpen(false);
-    setCheckoutOpen(true);
-  };
 
   return (
     <AppLayout>
@@ -419,26 +355,15 @@ export default function PDV() {
                   R$ {(total + existingTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-14 font-semibold border-2"
-                  onClick={() => saveItems('pendente')}
-                  disabled={createSale.isPending}
-                >
-                  <Save className="w-4 h-4 mr-1" />
-                  Salvar
-                </Button>
-                <Button
-                  size="lg"
-                  className="h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
-                  onClick={handleCobrar}
-                >
-                  <CreditCard className="w-4 h-4 mr-1" />
-                  Cobrar
-                </Button>
-              </div>
+              <Button
+                size="lg"
+                className="w-full h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
+                onClick={savePending}
+                disabled={createSale.isPending}
+              >
+                <Save className="w-4 h-4 mr-1" />
+                Salvar pedido
+              </Button>
             </div>
           </aside>
         </div>
@@ -494,24 +419,15 @@ export default function PDV() {
                 <div className="flex-1 overflow-y-auto px-4 min-h-[160px] max-h-[40vh]">
                   <CartList />
                 </div>
-                <div className="p-4 border-t border-border grid grid-cols-2 gap-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="p-4 border-t border-border pb-[max(1rem,env(safe-area-inset-bottom))]">
                   <Button
-                    variant="outline"
                     size="lg"
-                    className="h-14 font-semibold border-2"
-                    onClick={() => saveItems('pendente')}
+                    className="w-full h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
+                    onClick={savePending}
                     disabled={createSale.isPending}
                   >
                     <Save className="w-4 h-4 mr-1" />
-                    Salvar
-                  </Button>
-                  <Button
-                    size="lg"
-                    className="h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
-                    onClick={handleCobrar}
-                  >
-                    <CreditCard className="w-4 h-4 mr-1" />
-                    Cobrar
+                    Salvar pedido
                   </Button>
                 </div>
               </DrawerContent>
@@ -519,21 +435,13 @@ export default function PDV() {
             <Button
               size="lg"
               className="h-[60px] px-4 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow shrink-0"
-              onClick={handleCobrar}
+              onClick={savePending}
+              disabled={createSale.isPending}
             >
-              <CreditCard className="w-5 h-5" />
+              <Save className="w-5 h-5" />
             </Button>
           </div>
         </div>
-
-        <CheckoutModal
-          open={checkoutOpen}
-          onOpenChange={setCheckoutOpen}
-          total={total + existingTotal}
-          onConfirm={handleCheckout}
-          onPayLater={() => { setCheckoutOpen(false); saveItems('pendente'); }}
-          loading={createSale.isPending || updateSale.isPending}
-        />
       </PageTransition>
     </AppLayout>
   );
