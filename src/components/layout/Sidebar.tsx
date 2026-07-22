@@ -75,8 +75,8 @@ export default function Sidebar() {
           <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-sidebar-foreground/20" />
           <div className="absolute -bottom-4 -left-4 w-20 h-20 rounded-full bg-sidebar-foreground/10" />
         </div>
-        <h1 className="font-display text-sidebar-foreground tracking-[0.15em] text-4xl relative">
-          TOP
+        <h1 className="font-display text-sidebar-foreground tracking-[0.12em] text-2xl relative">
+          DEUS PROVEU
         </h1>
         <p className="font-display text-sidebar-primary tracking-[0.35em] uppercase mt-1 text-2xl relative">
           Espetos
@@ -178,7 +178,7 @@ export default function Sidebar() {
       <div className="p-4 border-t border-sidebar-border/40">
         <div className="px-3">
           <p className="text-sm font-medium text-sidebar-foreground/90">
-            Top Espetos
+            Deus Proveu Espetos
           </p>
           <p className="text-[11px] text-sidebar-foreground/50">
             Gestão da Barraca

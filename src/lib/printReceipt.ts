@@ -1,14 +1,15 @@
 import { toast } from 'sonner';
 
-const BUSINESS_NAME = 'Top Espetos';
+const BUSINESS_NAME = 'Deus Proveu Espetos';
 
-// Generic ESC/POS 58mm thermal printer chipset (identified via Windows registry
-// for this specific Knup KP-IM607 unit). Windows print-spooler based printing
-// (window.print() to the installed driver) was tested and reliably hangs with
-// 0 pages printed on this hardware, so we talk to the raw USB interface
-// directly instead, bypassing the OS print queue entirely.
-const PRINTER_VENDOR_ID = 0x6868;
-const PRINTER_PRODUCT_ID = 0x0200;
+// Recibos sao enviados como bytes ESC/POS crus para uma ponte HTTP local
+// (print-helper/print-helper.ps1) que roda no PC do caixa e repassa em modo
+// RAW ao spooler do Windows. Esse caminho foi necessario porque a impressao
+// grafica normal (window.print() -> driver) trava com 0 paginas nessa
+// impressora (Knup KP-IM607, chipset generico), enquanto o modo RAW imprime
+// corretamente. Vantagem sobre WebUSB: funciona em qualquer navegador e nao
+// exige troca de driver (Zadig).
+const PRINT_HELPER_URL = 'http://localhost:9100/print';
 const PAPER_WIDTH_CHARS = 32;
 
 export interface ReceiptItem {
@@ -102,10 +103,8 @@ function buildReceiptEscPos({ customer, items, total, paymentMethod }: ReceiptDa
   b.init();
 
   b.align('center');
-  b.doubleSize(true);
   b.bold(true);
   b.line(BUSINESS_NAME);
-  b.doubleSize(false);
   b.bold(false);
   b.line(`${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`);
   b.divider();
@@ -137,50 +136,30 @@ function buildReceiptEscPos({ customer, items, total, paymentMethod }: ReceiptDa
   return b.build();
 }
 
-// WebUSB (navigator.usb) has no lib.dom.d.ts types in this project's TS setup;
-// typed loosely as `any` rather than pulling in a dedicated @types package.
-let cachedDevice: any | null = null;
-
-async function getPrinterDevice(): Promise<any> {
-  const usb = (navigator as any).usb;
-  if (!usb) throw new Error('WebUSB não suportado neste navegador (use Chrome ou Edge).');
-
-  if (cachedDevice) return cachedDevice;
-
-  const known = await usb.getDevices();
-  let device = known.find((d) => d.vendorId === PRINTER_VENDOR_ID && d.productId === PRINTER_PRODUCT_ID);
-
-  if (!device) {
-    device = await usb.requestDevice({
-      filters: [{ vendorId: PRINTER_VENDOR_ID, productId: PRINTER_PRODUCT_ID }],
-    });
-  }
-
-  cachedDevice = device;
-  return device;
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
 
-async function sendRawToPrinter(bytes: Uint8Array) {
-  const device = await getPrinterDevice();
-
-  if (!device.opened) await device.open();
-  if (device.configuration === null) await device.selectConfiguration(1);
-
-  const iface = device.configuration!.interfaces[0];
-  if (!iface.claimed) await device.claimInterface(iface.interfaceNumber);
-
-  const endpoint = iface.alternate.endpoints.find((e) => e.direction === 'out');
-  if (!endpoint) throw new Error('Endpoint de saída não encontrado na impressora.');
-
-  await device.transferOut(endpoint.endpointNumber, bytes);
+async function sendToPrintHelper(bytes: Uint8Array) {
+  const res = await fetch(PRINT_HELPER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: bytesToBase64(bytes) }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail?.error || `HTTP ${res.status}`);
+  }
 }
 
 export async function printReceipt(data: ReceiptData) {
   try {
     const bytes = buildReceiptEscPos(data);
-    await sendRawToPrinter(bytes);
+    await sendToPrintHelper(bytes);
   } catch (err) {
-    console.error('Falha ao imprimir recibo via USB:', err);
-    toast.error('Falha ao imprimir recibo. Verifique a conexão USB da impressora.');
+    console.error('Falha ao imprimir recibo:', err);
+    toast.error('Não foi possível imprimir. O programa de impressão está aberto no PC do caixa?');
   }
 }

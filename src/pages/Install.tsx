@@ -57,7 +57,7 @@ export default function Install() {
         <div className="text-center">
           <h1 className="font-display text-3xl font-bold text-foreground">Instalar App</h1>
           <p className="text-muted-foreground mt-2">
-            Instale o Top Espetos no seu celular para acesso rápido
+            Instale o Deus Proveu Espetos no seu celular para acesso rápido
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export default function Install() {
               </div>
               <h2 className="text-xl font-semibold text-success mb-2">App Instalado!</h2>
               <p className="text-muted-foreground">
-                O Top Espetos já está instalado no seu dispositivo.
+                O Deus Proveu Espetos já está instalado no seu dispositivo.
               </p>
             </CardContent>
           </Card>
@@ -90,7 +90,7 @@ export default function Install() {
                 <CardContent>
                   <Button onClick={handleInstall} className="w-full gap-2" size="lg">
                     <Download className="w-5 h-5" />
-                    Instalar Top Espetos
+                    Instalar Deus Proveu Espetos
                   </Button>
                 </CardContent>
               </Card>

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Config local do Claude Code e Syncthing (nao versionar)
+.claude/
+.stignore

@@ -53,7 +53,7 @@ export default function Index() {
                 <Flame className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="font-display text-2xl font-bold">Top Espetos</h1>
+                <h1 className="font-display text-2xl font-bold">Deus Proveu Espetos</h1>
                 <p className="text-xs text-muted-foreground capitalize">
                   {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                 </p>
