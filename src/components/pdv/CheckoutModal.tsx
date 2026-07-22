@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Banknote, CreditCard, QrCode, Clock } from 'lucide-react';
+import { Banknote, CreditCard, QrCode, Clock, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -20,17 +20,27 @@ const methods = [
   { id: 'Cartão', label: 'Cartão', icon: CreditCard },
 ];
 
+const cardTypes = [
+  { id: 'Débito', label: 'Débito', icon: Landmark },
+  { id: 'Crédito', label: 'Crédito', icon: CreditCard },
+];
+
 export default function CheckoutModal({ open, onOpenChange, total, onConfirm, onPayLater, loading }: Props) {
   const [method, setMethod] = useState<string>('PIX');
+  const [cardType, setCardType] = useState<string | null>(null);
   const [cashReceived, setCashReceived] = useState('');
 
   useEffect(() => {
     setCashReceived('');
+    setCardType(null);
   }, [open, method]);
 
   const cashValue = parseFloat(cashReceived.replace(',', '.')) || 0;
   const change = cashValue - total;
   const isCashShort = method === 'Dinheiro' && cashValue > 0 && change < 0;
+  // Cartão exige escolher Débito/Crédito; o método salvo vira "Cartão Débito"/"Cartão Crédito"
+  const needsCardType = method === 'Cartão' && !cardType;
+  const effectiveMethod = method === 'Cartão' && cardType ? `Cartão ${cardType}` : method;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,6 +77,30 @@ export default function CheckoutModal({ open, onOpenChange, total, onConfirm, on
                 </button>
               ))}
             </div>
+
+            {method === 'Cartão' && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold mb-2">Tipo de cartão</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {cardTypes.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCardType(c.id)}
+                      className={cn(
+                        'flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all',
+                        cardType === c.id
+                          ? 'border-primary bg-primary/15 text-primary scale-[1.02]'
+                          : 'border-border bg-card hover:border-primary/50'
+                      )}
+                    >
+                      <c.icon className="w-5 h-5" />
+                      <span className="text-sm font-semibold">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {method === 'Dinheiro' && (
               <div className="mt-4 space-y-3">
@@ -117,8 +151,8 @@ export default function CheckoutModal({ open, onOpenChange, total, onConfirm, on
             Cancelar
           </Button>
           <Button
-            onClick={() => onConfirm(method)}
-            disabled={loading || isCashShort || (method === 'Dinheiro' && cashValue <= 0)}
+            onClick={() => onConfirm(effectiveMethod)}
+            disabled={loading || isCashShort || (method === 'Dinheiro' && cashValue <= 0) || needsCardType}
             className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
             size="lg"
           >
