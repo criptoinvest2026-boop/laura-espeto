@@ -6,11 +6,13 @@ import { useOpenTabs } from '@/hooks/useOpenTabs';
 import { useSales } from '@/hooks/useSales';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ClipboardList, Plus, CreditCard, Trash2, Clock } from 'lucide-react';
+import { ClipboardList, Plus, CreditCard, Trash2, Clock, ChevronDown } from 'lucide-react';
 import CheckoutModal from '@/components/pdv/CheckoutModal';
+import TabItemsList from '@/components/comandas/TabItemsList';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { printReceipt } from '@/lib/printReceipt';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -112,6 +114,9 @@ export default function Comandas() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-display text-xl font-bold">{tab.name}</p>
+                          <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                            {format(new Date(tab.openedAt), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                          </p>
                           <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                             <Clock className="w-3 h-3" />
                             {formatDistanceToNow(new Date(tab.openedAt), { addSuffix: true, locale: ptBR })}
@@ -122,25 +127,24 @@ export default function Comandas() {
                         </span>
                       </div>
 
-                      <div className="space-y-1 max-h-32 overflow-y-auto mb-3 text-sm">
-                        {tab.items.map((item) => (
-                          <div key={item.id} className="flex justify-between text-foreground/80">
-                            <span className="truncate">
-                              {item.quantity}× {item.product_name}
+                      <Collapsible>
+                        <CollapsibleTrigger className="w-full flex items-center justify-between py-2 border-t border-border text-left group">
+                          <span className="text-xs text-muted-foreground">
+                            {tab.itemCount} {tab.itemCount === 1 ? 'item' : 'itens'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="font-display text-2xl font-bold text-primary">
+                              R$ {tab.total.toFixed(2)}
                             </span>
-                            <span className="font-medium text-foreground shrink-0 ml-2">
-                              R$ {Number(item.total_price).toFixed(2)}
-                            </span>
+                            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                          </span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="max-h-40 overflow-y-auto pb-2">
+                            <TabItemsList items={tab.items} />
                           </div>
-                        ))}
-                      </div>
-
-                      <div className="flex items-baseline justify-between pt-3 border-t border-border">
-                        <span className="text-xs text-muted-foreground">{tab.itemCount} itens</span>
-                        <span className="font-display text-2xl font-bold text-primary">
-                          R$ {tab.total.toFixed(2)}
-                        </span>
-                      </div>
+                        </CollapsibleContent>
+                      </Collapsible>
 
                       <div className="grid grid-cols-3 gap-1.5 mt-3">
                         <Button

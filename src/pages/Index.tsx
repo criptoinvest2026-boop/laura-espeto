@@ -14,10 +14,14 @@ import {
   ClipboardList,
   Flame,
   Plus,
+  ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import TabItemsList from '@/components/comandas/TabItemsList';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { parseNotes } from '@/lib/saleNotes';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -107,19 +111,33 @@ export default function Index() {
               ) : (
                 <div className="space-y-2">
                   {tabs.slice(0, 5).map((t) => (
-                    <button
-                      key={t.name}
-                      onClick={() => navigate(`/pdv?comanda=${encodeURIComponent(t.name)}`)}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors text-left"
-                    >
-                      <div>
-                        <p className="font-semibold">{t.name}</p>
-                        <p className="text-xs text-muted-foreground">{t.itemCount} itens</p>
+                    <Collapsible key={t.name} className="rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors">
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => navigate(`/pdv?comanda=${encodeURIComponent(t.name)}`)}
+                          className="flex-1 flex items-center justify-between p-3 text-left min-w-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{t.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(t.openedAt), 'dd/MM HH:mm')} • {t.itemCount}{' '}
+                              {t.itemCount === 1 ? 'item' : 'itens'}
+                            </p>
+                          </div>
+                          <span className="font-display text-lg font-bold text-primary shrink-0 ml-2">
+                            R$ {t.total.toFixed(2)}
+                          </span>
+                        </button>
+                        <CollapsibleTrigger className="p-3 self-stretch flex items-center group" aria-label="Ver itens">
+                          <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                        </CollapsibleTrigger>
                       </div>
-                      <span className="font-display text-lg font-bold text-primary">
-                        R$ {t.total.toFixed(2)}
-                      </span>
-                    </button>
+                      <CollapsibleContent>
+                        <div className="px-3 pb-3">
+                          <TabItemsList items={t.items} />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   ))}
                 </div>
               )}
@@ -138,19 +156,26 @@ export default function Index() {
                 <p className="text-sm text-muted-foreground text-center py-6">Nenhuma venda hoje</p>
               ) : (
                 <div className="space-y-2">
-                  {recentSales.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{s.product_name}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {s.customer_name} • {format(new Date(s.created_at), 'HH:mm')}
-                        </p>
+                  {recentSales.map((s) => {
+                    const { doneness, obs } = parseNotes(s.notes);
+                    return (
+                      <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">
+                            {s.customer_name} • {format(new Date(s.created_at), 'HH:mm')}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {s.quantity}× {s.product_name}
+                            {doneness && ` — ${doneness}`}
+                            {obs && ` (${obs})`}
+                          </p>
+                        </div>
+                        <span className="font-bold text-emerald-600 text-sm">
+                          R$ {Number(s.total_price).toFixed(2)}
+                        </span>
                       </div>
-                      <span className="font-bold text-emerald-600 text-sm">
-                        R$ {Number(s.total_price).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Card>
