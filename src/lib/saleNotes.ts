@@ -26,8 +26,9 @@ export function parseNotes(notes: string | null | undefined): { doneness: string
 }
 
 // Categorias cujo nome contenha uma destas palavras pedem o ponto da carne no PDV.
+// Ex.: "Espetos Simples" e "Jantinhas" perguntam; "Bebidas"/"Acompanhamentos" não.
 // Para ajustar quais categorias perguntam, basta editar este array.
-export const DONENESS_CATEGORY_KEYWORDS = ['espet', 'carne', 'churras'];
+export const DONENESS_CATEGORY_KEYWORDS = ['espet', 'carne', 'churras', 'jantinha', 'janta'];
 
 function normalize(value: string) {
   return value
