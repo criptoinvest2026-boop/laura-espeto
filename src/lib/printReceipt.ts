@@ -17,6 +17,8 @@ export interface ReceiptItem {
   qty: number;
   unitPrice: number;
   total: number;
+  /** Ponto da carne / observação (ex: "Ao ponto | sem sal"). Impresso sob o item quando presente. */
+  notes?: string;
 }
 
 export interface ReceiptData {
@@ -117,6 +119,7 @@ function buildReceiptEscPos({ customer, items, total, paymentMethod }: ReceiptDa
 
   for (const item of items) {
     b.line(`${item.qty}x ${item.name}`);
+    if (item.notes) b.line(`  > ${item.notes}`);
     b.line(padLine(`  R$ ${item.unitPrice.toFixed(2)} un.`, `R$ ${item.total.toFixed(2)}`));
   }
   b.divider();
