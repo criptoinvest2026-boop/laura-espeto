@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Trash2, Edit, Package, X } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, Package, X, Ban, PackageCheck } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { Button } from '@/components/ui/button';
@@ -86,6 +86,12 @@ export default function ProductList() {
 
   const hasActiveFilters = search !== '' || categoryFilter !== 'all';
   const clearFilters = () => { setSearch(''); setCategoryFilter('all'); };
+
+  // Esgotado = produto inativo (some do PDV, não pode ser vendido).
+  const toggleAvailable = (product: Product) => {
+    updateProduct.mutateAsync({ id: product.id, is_active: !product.is_active });
+    toast.success(product.is_active ? `${product.name} marcado como esgotado` : `${product.name} disponível novamente`);
+  };
 
   // Group by category
   const grouped = filteredProducts.reduce<Record<string, Product[]>>((acc, p) => {
@@ -237,15 +243,29 @@ export default function ProductList() {
                       </TableHeader>
                       <TableBody>
                         {prods.map((product) => (
-                          <TableRow key={product.id}>
+                          <TableRow key={product.id} className={product.is_active ? '' : 'opacity-60'}>
                             <TableCell className="font-medium">
                               <span className="mr-2 text-lg">{getProductEmoji(product.name)}</span>
                               {product.name}
+                              {!product.is_active && (
+                                <Badge variant="secondary" className="ml-2 bg-destructive/15 text-destructive text-[10px] uppercase">
+                                  Esgotado
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-semibold">{formatCurrency(Number(product.price))}</TableCell>
                             <TableCell className="capitalize">{product.unit}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title={product.is_active ? 'Marcar como esgotado' : 'Marcar como disponível'}
+                                  className={product.is_active ? 'text-amber-600 hover:text-amber-600' : 'text-emerald-600 hover:text-emerald-600'}
+                                  onClick={() => toggleAvailable(product)}
+                                >
+                                  {product.is_active ? <Ban className="w-4 h-4" /> : <PackageCheck className="w-4 h-4" />}
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => openEditDialog(product)}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
