@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
@@ -40,6 +40,16 @@ export default function Comandas() {
   const activeTab = tabs.find((t) => t.name === checkoutTab);
   const editingTab = tabs.find((t) => t.name === editTab) ?? null;
   const categoryOf = (name: string) => products.find((p) => p.name === name)?.category ?? null;
+
+  // Alerta de comanda parada: destaca comandas abertas há muito tempo.
+  // "now" atualiza a cada minuto para o alerta acender sozinho.
+  const STALE_MINUTES = 30;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const minutesOpen = (openedAt: string) => Math.floor((now - new Date(openedAt).getTime()) / 60000);
 
   const handleCharge = async (method: string) => {
     if (!activeTab) return;
@@ -117,21 +127,32 @@ export default function Comandas() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                   >
-                    <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow border-2 border-border hover:border-primary/40">
+                    <Card className={`p-4 shadow-card hover:shadow-elevated transition-shadow border-2 hover:border-primary/40 ${
+                      minutesOpen(tab.openedAt) >= STALE_MINUTES ? 'border-amber-500/70 bg-amber-500/[0.04]' : 'border-border'
+                    }`}>
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-display text-xl font-bold">{tab.name}</p>
                           <p className="text-xs text-muted-foreground font-medium mt-0.5">
                             {format(new Date(tab.openedAt), "dd/MM 'às' HH:mm", { locale: ptBR })}
                           </p>
-                          <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${
+                            minutesOpen(tab.openedAt) >= STALE_MINUTES ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground'
+                          }`}>
                             <Clock className="w-3 h-3" />
                             {formatDistanceToNow(new Date(tab.openedAt), { addSuffix: true, locale: ptBR })}
                           </p>
                         </div>
-                        <span className="text-xs font-bold uppercase px-2 py-1 rounded-md bg-warning/15 text-warning">
-                          Aberta
-                        </span>
+                        {minutesOpen(tab.openedAt) >= STALE_MINUTES ? (
+                          <span className="text-xs font-bold uppercase px-2 py-1 rounded-md bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center gap-1 whitespace-nowrap">
+                            <Clock className="w-3 h-3" />
+                            {minutesOpen(tab.openedAt)} min
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold uppercase px-2 py-1 rounded-md bg-warning/15 text-warning">
+                            Aberta
+                          </span>
+                        )}
                       </div>
 
                       <Collapsible>
