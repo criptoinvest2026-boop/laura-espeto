@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Award, Users, ArrowUpDown, ArrowUp, ArrowDown, BarChart3, AlertCircle, Phone, Copy, Check, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -14,8 +14,9 @@ import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
 import ConfectioneryDecor from '@/components/decorations/ConfectioneryDecor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import PeriodSelector, { Period, periodToInterval } from '@/components/reports/PeriodSelector';
+import SalesByTabSection from '@/components/reports/SalesByTabSection';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -73,22 +74,26 @@ export default function Reports() {
     return Array.from(months).sort().reverse();
   }, [sales, expenses]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    availableMonths[0] || format(new Date(), 'yyyy-MM')
-  );
+  const [period, setPeriod] = useState<Period>({
+    mode: 'month',
+    month: availableMonths[0] || format(new Date(), 'yyyy-MM'),
+  });
+
+  // Limites do período como strings 'yyyy-MM-dd' (null = sem filtro).
+  // Comparação direta de strings, mesmo espírito do startsWith original.
+  const interval = useMemo(() => periodToInterval(period), [period]);
 
   const monthData = useMemo(() => {
     let monthSales, monthExpenses;
 
-    if (selectedMonth === 'all') {
+    if (!interval) {
       monthSales = sales;
       monthExpenses = expenses;
     } else {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const monthStart = startOfMonth(new Date(year, month - 1));
-      const monthEnd = endOfMonth(new Date(year, month - 1));
-      monthSales = sales.filter(sale => sale.sale_date.startsWith(selectedMonth));
-      monthExpenses = expenses.filter(expense => expense.expense_date.startsWith(selectedMonth));
+      monthSales = sales.filter(sale => sale.sale_date >= interval.from && sale.sale_date <= interval.to);
+      monthExpenses = expenses.filter(
+        expense => expense.expense_date >= interval.from && expense.expense_date <= interval.to
+      );
     }
 
     const totalSales = monthSales.reduce((sum, s) => sum + Number(s.total_price), 0);
@@ -121,33 +126,43 @@ export default function Reports() {
       .sort((a, b) => b.total - a.total);
 
     return { totalSales, totalExpenses, profit, salesCount: monthSales.length, topProducts, topCustomers, monthSales, monthExpenses };
-  }, [selectedMonth, sales, expenses, products]);
+  }, [interval, sales, expenses, products]);
 
-  // Chart data - monthly evolution
+  // Gráfico: granularidade diária quando o período tem até 31 dias; senão mensal.
+  const isDailyChart = useMemo(
+    () => !!interval && differenceInCalendarDays(parseISO(interval.to), parseISO(interval.from)) <= 31,
+    [interval]
+  );
+
   const chartData = useMemo(() => {
-    const monthMap: Record<string, { vendas: number; custos: number }> = {};
+    const bucketMap: Record<string, { vendas: number; custos: number }> = {};
+    const keyLength = isDailyChart ? 10 : 7; // 'yyyy-MM-dd' ou 'yyyy-MM'
+    const inInterval = (date: string) =>
+      !isDailyChart || (!!interval && date >= interval.from && date <= interval.to);
+
     sales.forEach(sale => {
-      const key = sale.sale_date.substring(0, 7);
-      if (!monthMap[key]) monthMap[key] = { vendas: 0, custos: 0 };
-      monthMap[key].vendas += Number(sale.total_price);
+      if (!inInterval(sale.sale_date)) return;
+      const key = sale.sale_date.substring(0, keyLength);
+      if (!bucketMap[key]) bucketMap[key] = { vendas: 0, custos: 0 };
+      bucketMap[key].vendas += Number(sale.total_price);
     });
     expenses.forEach(expense => {
-      const key = expense.expense_date.substring(0, 7);
-      if (!monthMap[key]) monthMap[key] = { vendas: 0, custos: 0 };
-      monthMap[key].custos += Number(expense.amount);
+      if (!inInterval(expense.expense_date)) return;
+      const key = expense.expense_date.substring(0, keyLength);
+      if (!bucketMap[key]) bucketMap[key] = { vendas: 0, custos: 0 };
+      bucketMap[key].custos += Number(expense.amount);
     });
-    return Object.entries(monthMap)
+    return Object.entries(bucketMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, data]) => {
-        const [year, month] = key.split('-').map(Number);
-        return {
-          name: format(new Date(year, month - 1), 'MMM/yy', { locale: ptBR }),
-          Vendas: Math.round(data.vendas * 100) / 100,
-          Custos: Math.round(data.custos * 100) / 100,
-          Lucro: Math.round((data.vendas - data.custos) * 100) / 100,
-        };
-      });
-  }, [sales, expenses]);
+      .map(([key, data]) => ({
+        name: isDailyChart
+          ? format(parseISO(key), 'dd/MM', { locale: ptBR })
+          : format(new Date(Number(key.split('-')[0]), Number(key.split('-')[1]) - 1), 'MMM/yy', { locale: ptBR }),
+        Vendas: Math.round(data.vendas * 100) / 100,
+        Custos: Math.round(data.custos * 100) / 100,
+        Lucro: Math.round((data.vendas - data.custos) * 100) / 100,
+      }));
+  }, [sales, expenses, interval, isDailyChart]);
 
   // Sort products
   const sortedProducts = useMemo(() => {
@@ -218,8 +233,8 @@ export default function Reports() {
   // Pending sales grouped by customer, then by month
   const pendingSalesByCustomer = useMemo(() => {
     let pending = sales.filter(s => s.payment_status === 'pendente');
-    if (selectedMonth !== 'all') {
-      pending = pending.filter(s => s.sale_date.startsWith(selectedMonth));
+    if (interval) {
+      pending = pending.filter(s => s.sale_date >= interval.from && s.sale_date <= interval.to);
     }
     const byCustomer: Record<string, { sales: typeof pending; total: number }> = {};
     pending.forEach(sale => {
@@ -230,7 +245,7 @@ export default function Reports() {
     return Object.entries(byCustomer)
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.total - a.total);
-  }, [sales, selectedMonth]);
+  }, [sales, interval]);
   const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const formatMonth = (monthStr: string) => {
@@ -258,21 +273,12 @@ export default function Reports() {
               <p className="text-muted-foreground/70 text-xs mt-0.5">Análise de vendas e custos</p>
             </div>
           </div>
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-full sm:w-56 rounded-xl">
-              <SelectValue placeholder="Selecione o mês" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">📊 Todos os meses</SelectItem>
-              {availableMonths.length > 0 ? (
-                availableMonths.map(month => (
-                  <SelectItem key={month} value={month}>{formatMonth(month)}</SelectItem>
-                ))
-              ) : (
-                <SelectItem value={format(new Date(), 'yyyy-MM')}>{formatMonth(format(new Date(), 'yyyy-MM'))}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+          <PeriodSelector
+            value={period}
+            onChange={setPeriod}
+            availableMonths={availableMonths}
+            formatMonth={formatMonth}
+          />
         </div>
 
         {/* Summary Cards - modern grid */}
@@ -353,6 +359,9 @@ export default function Reports() {
 
         {/* Sections */}
         <Accordion type="multiple" className="space-y-3">
+          {/* Sales grouped by comanda (mesa + data/hora) */}
+          <SalesByTabSection sales={monthData.monthSales} />
+
           {/* Products Sold */}
           <AccordionItem value="products" className="border-0">
             <Card className="shadow-card border-0 rounded-2xl overflow-hidden">
@@ -413,7 +422,7 @@ export default function Reports() {
                       })}
                     </Accordion>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">Nenhuma venda neste mês</p>
+                    <p className="text-center text-muted-foreground py-8">Nenhuma venda no período</p>
                   )}
                 </CardContent>
               </AccordionContent>
@@ -427,7 +436,7 @@ export default function Reports() {
                 <AccordionTrigger className="hover:no-underline py-0">
                   <CardTitle className="flex items-center gap-2 font-display text-base">
                     <TrendingDown className="w-4 h-4 text-destructive" />
-                    Custos do Mês
+                    Custos do Período
                   </CardTitle>
                 </AccordionTrigger>
               </CardHeader>
@@ -479,7 +488,7 @@ export default function Reports() {
                       })}
                     </Accordion>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">Nenhuma despesa neste mês</p>
+                    <p className="text-center text-muted-foreground py-8">Nenhuma despesa no período</p>
                   )}
                 </CardContent>
               </AccordionContent>
@@ -531,7 +540,7 @@ export default function Reports() {
                       </TableBody>
                     </Table>
                   ) : (
-                    <p className="text-center text-muted-foreground py-8">Nenhuma venda neste mês</p>
+                    <p className="text-center text-muted-foreground py-8">Nenhuma venda no período</p>
                   )}
                 </CardContent>
               </AccordionContent>
@@ -641,7 +650,7 @@ export default function Reports() {
                   <AccordionTrigger className="hover:no-underline py-0">
                   <CardTitle className="flex items-center gap-2 font-display text-base">
                     <BarChart3 className="w-4 h-4 text-primary" />
-                    Evolução Mensal
+                    {isDailyChart ? 'Evolução Diária' : 'Evolução Mensal'}
                     </CardTitle>
                   </AccordionTrigger>
                 </CardHeader>
