@@ -5,6 +5,7 @@ import PageTransition from '@/components/layout/PageTransition';
 import { useOpenTabs } from '@/hooks/useOpenTabs';
 import { useSales } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
+import { Sale } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ClipboardList, Plus, CreditCard, Trash2, Clock, ChevronDown, Pencil } from 'lucide-react';
@@ -50,6 +51,10 @@ export default function Comandas() {
     return () => clearInterval(id);
   }, []);
   const minutesOpen = (openedAt: string) => Math.floor((now - new Date(openedAt).getTime()) / 60000);
+
+  const toggleDelivered = (item: Sale) => {
+    updateSale.mutateAsync({ id: item.id, delivered: !item.delivered });
+  };
 
   const handleCharge = async (method: string) => {
     if (!activeTab) return;
@@ -169,7 +174,7 @@ export default function Comandas() {
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="max-h-40 overflow-y-auto pb-2">
-                            <TabItemsList items={tab.items} />
+                            <TabItemsList items={tab.items} onToggleDelivered={toggleDelivered} />
                           </div>
                         </CollapsibleContent>
                       </Collapsible>

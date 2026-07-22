@@ -35,6 +35,8 @@ export interface Sale {
   notes: string | null;
   created_by: string | null;
   seller_name: string | null;
+  /** Item já entregue ao cliente (requer migração add_delivered_to_sales). */
+  delivered?: boolean;
   created_at: string;
   updated_at: string;
 }
