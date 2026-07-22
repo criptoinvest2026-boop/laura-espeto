@@ -139,6 +139,43 @@ function buildReceiptEscPos({ customer, items, total, paymentMethod }: ReceiptDa
   return b.build();
 }
 
+// Via do PEDIDO (cozinha/churrasqueira): impressa no momento em que o pedido é
+// salvo, com foco em produto + ponto da carne + observação — NÃO mostra preço.
+// Serve para o preparo sair certo e reduzir erro/retorno do cliente.
+function buildOrderTicketEscPos({ customer, items }: { customer: string; items: ReceiptItem[] }): Uint8Array {
+  const now = new Date();
+  const b = new EscPosBuilder();
+  b.init();
+
+  b.align('center');
+  b.doubleSize(true);
+  b.bold(true);
+  b.line('PEDIDO');
+  b.doubleSize(false);
+  b.bold(false);
+  b.line(`${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')}`);
+  b.divider();
+
+  b.align('left');
+  b.doubleSize(true);
+  b.bold(true);
+  b.line(`Mesa: ${customer}`);
+  b.doubleSize(false);
+  b.bold(false);
+  b.divider();
+
+  for (const item of items) {
+    b.bold(true);
+    b.line(`${item.qty}x ${item.name}`);
+    b.bold(false);
+    if (item.notes) b.line(`   >> ${item.notes}`);
+  }
+  b.divider();
+  b.feedLines(4);
+
+  return b.build();
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -164,5 +201,17 @@ export async function printReceipt(data: ReceiptData) {
   } catch (err) {
     console.error('Falha ao imprimir recibo:', err);
     toast.error('Não foi possível imprimir. O programa de impressão está aberto no PC do caixa?');
+  }
+}
+
+// Imprime a via do PEDIDO (cozinha) ao salvar. Falha silenciosa amigável para
+// não travar o fluxo caso a ponte de impressão não esteja rodando.
+export async function printOrderTicket(data: { customer: string; items: ReceiptItem[] }) {
+  try {
+    const bytes = buildOrderTicketEscPos(data);
+    await sendToPrintHelper(bytes);
+  } catch (err) {
+    console.error('Falha ao imprimir pedido:', err);
+    toast.error('Pedido salvo, mas não foi possível imprimir a via da cozinha.');
   }
 }

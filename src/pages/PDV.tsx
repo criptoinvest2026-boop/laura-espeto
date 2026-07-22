@@ -13,7 +13,9 @@ import { Product } from '@/types/database';
 import { Minus, Plus, Trash2, Save, ShoppingBag, ChevronUp, ChevronDown } from 'lucide-react';
 import { getProductEmoji } from '@/lib/productEmojis';
 import DonenessDialog from '@/components/pdv/DonenessDialog';
+import ConfirmOrderModal from '@/components/pdv/ConfirmOrderModal';
 import { formatNotes, parseNotes, productNeedsDoneness } from '@/lib/saleNotes';
+import { printOrderTicket } from '@/lib/printReceipt';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,6 +43,7 @@ export default function PDV() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [donenessProduct, setDonenessProduct] = useState<Product | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [expandedTabs, setExpandedTabs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -104,10 +107,20 @@ export default function PDV() {
     return true;
   };
 
+  // Abre a conferência do pedido antes de gravar (evita lançar errado).
+  const openConfirm = () => {
+    if (!validateCustomer()) return;
+    setCartDrawerOpen(false);
+    setConfirmOpen(true);
+  };
+
   // O PDV apenas cria/salva pedidos pendentes. Toda cobrança acontece na aba
   // Comandas (onde futuramente entra a integração com a maquininha de cartão).
+  // Ao confirmar, salva e imprime a via do pedido para a cozinha/churrasqueira.
   const savePending = async () => {
     if (!validateCustomer()) return;
+    const mesa = customer.trim();
+    const snapshot = cart.map((i) => ({ name: i.name, qty: i.qty, notes: i.notes }));
     const today = new Date().toISOString().split('T')[0];
     try {
       await Promise.all(
@@ -116,7 +129,7 @@ export default function PDV() {
             customer_id: null,
             product_id: item.product_id,
             product_name: item.name,
-            customer_name: customer.trim(),
+            customer_name: mesa,
             quantity: item.qty,
             unit_price: item.price,
             total_price: item.price * item.qty,
@@ -130,9 +143,15 @@ export default function PDV() {
           })
         )
       );
+      // Via da cozinha (falha silenciosa se a ponte não estiver rodando)
+      printOrderTicket({
+        customer: mesa,
+        items: snapshot.map((i) => ({ name: i.name, qty: i.qty, unitPrice: 0, total: 0, notes: i.notes ?? undefined })),
+      });
       toast.success('Pedido salvo! Cobre na aba Comandas.');
       setCart([]);
       setCustomer('');
+      setConfirmOpen(false);
       setCartDrawerOpen(false);
       if (initialName) navigate('/comandas');
     } catch {
@@ -398,7 +417,7 @@ export default function PDV() {
               <Button
                 size="lg"
                 className="w-full h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
-                onClick={savePending}
+                onClick={openConfirm}
                 disabled={createSale.isPending}
               >
                 <Save className="w-4 h-4 mr-1" />
@@ -463,7 +482,7 @@ export default function PDV() {
                   <Button
                     size="lg"
                     className="w-full h-14 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
-                    onClick={savePending}
+                    onClick={openConfirm}
                     disabled={createSale.isPending}
                   >
                     <Save className="w-4 h-4 mr-1" />
@@ -475,7 +494,7 @@ export default function PDV() {
             <Button
               size="lg"
               className="h-[60px] px-4 font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow shrink-0"
-              onClick={savePending}
+              onClick={openConfirm}
               disabled={createSale.isPending}
             >
               <Save className="w-5 h-5" />
@@ -490,6 +509,16 @@ export default function PDV() {
           onConfirm={(doneness, obs) => {
             if (donenessProduct) addWithNotes(donenessProduct, formatNotes(doneness, obs));
           }}
+        />
+
+        <ConfirmOrderModal
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          customer={customer.trim()}
+          items={cart.map((i) => ({ name: i.name, qty: i.qty, price: i.price, notes: i.notes }))}
+          total={total}
+          onConfirm={savePending}
+          loading={createSale.isPending}
         />
       </PageTransition>
     </AppLayout>
