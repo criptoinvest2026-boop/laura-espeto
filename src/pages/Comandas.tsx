@@ -50,6 +50,7 @@ export default function Comandas() {
           qty: Number(s.quantity),
           unitPrice: Number(s.unit_price),
           total: Number(s.total_price),
+          notes: s.notes ?? undefined,
         })),
         total: activeTab.total,
         paymentMethod: method,
