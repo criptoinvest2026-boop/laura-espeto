@@ -1,6 +1,5 @@
 import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
-import ConfectioneryDecor from '@/components/decorations/ConfectioneryDecor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Package, Tag } from 'lucide-react';
 import ProductList from '@/components/products/ProductList';
@@ -12,7 +11,6 @@ export default function Products() {
       <PageTransition>
         <div className="space-y-6">
           <div className="relative">
-            <ConfectioneryDecor variant="products" />
             <h1 className="font-display text-3xl font-bold text-foreground">Produtos</h1>
           </div>
 

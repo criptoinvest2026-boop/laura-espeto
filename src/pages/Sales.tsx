@@ -4,7 +4,6 @@ import { useSales } from '@/hooks/useSales';
 import { useProducts } from '@/hooks/useProducts';
 import { useCustomers } from '@/hooks/useCustomers';
 import PageTransition from '@/components/layout/PageTransition';
-import ConfectioneryDecor from '@/components/decorations/ConfectioneryDecor';
 import { motion } from 'framer-motion';
 import { getProductEmoji } from '@/lib/productEmojis';
 
@@ -356,7 +355,6 @@ export default function Sales() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="relative">
-            <ConfectioneryDecor variant="sales" />
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-soft">
                 <ShoppingCart className="w-5 h-5 text-primary-foreground" />

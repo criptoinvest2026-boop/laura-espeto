@@ -3,7 +3,6 @@ import { useExpenses } from '@/hooks/useExpenses';
 import { useExpenseCategories } from '@/hooks/useExpenseCategories';
 import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
-import ConfectioneryDecor from '@/components/decorations/ConfectioneryDecor';
 import ExpenseCategoryManager from '@/components/expenses/ExpenseCategoryManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -167,7 +166,6 @@ export default function Expenses() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="relative">
-            <ConfectioneryDecor variant="expenses" />
             <h1 className="font-display text-3xl font-bold text-foreground">Custos</h1>
             <p className="text-muted-foreground mt-1 capitalize">
               {selectedMonth === ALL_MONTHS ? 'Todos os meses' : formatMonth(selectedMonth)}

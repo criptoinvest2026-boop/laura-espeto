@@ -12,7 +12,6 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/components/layout/AppLayout';
 import PageTransition from '@/components/layout/PageTransition';
-import ConfectioneryDecor from '@/components/decorations/ConfectioneryDecor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import PeriodSelector, { Period, periodToInterval } from '@/components/reports/PeriodSelector';
@@ -286,7 +285,6 @@ export default function Reports() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="relative flex items-center gap-3">
-            <ConfectioneryDecor variant="reports" />
             <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center shadow-soft">
               <BarChart3 className="w-5 h-5 text-primary-foreground" />
             </div>

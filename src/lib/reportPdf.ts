@@ -64,7 +64,7 @@ export function generateReportPdf({ periodLabel, totals, sales, expenses, produc
     ],
     theme: 'grid',
     styles: { fontSize: 11, cellPadding: 2.5 },
-    headStyles: { fillColor: [236, 72, 153], textColor: 255, fontSize: 12 },
+    headStyles: { fillColor: [223, 166, 32], textColor: 30, fontSize: 12 },
     columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
     margin: { left: margin, right: margin },
   });
